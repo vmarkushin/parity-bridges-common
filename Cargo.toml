@@ -3,8 +3,9 @@
 members = [
     "bin/node/node",
     "bin/node/runtime",
-    "modules/substrate",
     "modules/ethereum",
+	"modules/headerchain",
+    "modules/substrate",
     "relays/ethereum",
     "relays/substrate",
 ]
