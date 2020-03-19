@@ -46,7 +46,7 @@ decl_module! {
 		) {
 			// TODO [ToDr[ Check configuration
 			let submitter = frame_system::ensure_signed(origin)?;
-			let import_result: Result<_, String> = unimplemented!();
+			let import_result: Result<_, &'static str> = unimplemented!();
 			// let import_result = import::import_headers(
 			// 	&mut BridgeStorage,
 			// 	&kovan_aura_config(),
@@ -112,11 +112,11 @@ decl_storage! {
 
 			let initial_hash = config.initial_header.compute_hash();
 			// BestBlock::put((config.initial_header.number, initial_hash, config.initial_difficulty));
-			BestBlock::<T>::put((config.initial_header.number(), initial_hash));
-			FinalizedBlock::<T>::put((config.initial_header.number(), initial_hash));
+			BestBlock::<T>::put((config.initial_header.number(), &initial_hash));
+			FinalizedBlock::<T>::put((config.initial_header.number(), &initial_hash));
 			OldestUnprunedBlock::<T>::put(config.initial_header.number());
-			HeadersByNumber::<T>::insert(config.initial_header.number(), vec![initial_hash]);
-			Headers::<T>::insert(initial_hash, config.initial_header.clone());
+			HeadersByNumber::<T>::insert(config.initial_header.number(), vec![&initial_hash]);
+			Headers::<T>::insert(initial_hash, &config.initial_header);
 			// StoredHeader {
 			// 	header: config.initial_header.clone(),
 			// 	total_difficulty: config.initial_difficulty,
@@ -197,7 +197,7 @@ impl<T: Trait> Storage<T::BridgeTypes> for BridgeStorage<T> {
 		header: HeaderFor<T::BridgeTypes>,
 	) {
 		if is_best {
-			BestBlock::<T>::put((number, hash));
+			BestBlock::<T>::put((&number, &hash));
 		}
 		// if let Some(scheduled_change) = header.scheduled_change {
 		// 	ScheduledChanges::insert(&header.hash, scheduled_change);
@@ -222,7 +222,7 @@ impl<T: Trait> Storage<T::BridgeTypes> for BridgeStorage<T> {
 		// 	}
 		// };
 
-		HeadersByNumber::<T>::append_or_insert(number, vec![hash]);
+		HeadersByNumber::<T>::append_or_insert(&number, vec![&hash]);
 		Headers::<T>::insert(
 			&hash,
 			header,
@@ -242,7 +242,7 @@ impl<T: Trait> Storage<T::BridgeTypes> for BridgeStorage<T> {
 		// remember just finalized block
 		let finalized_number = finalized
 			.as_ref()
-			.map(|f| f.0)
+			.map(|f| f.0.clone())
 			.unwrap_or_else(|| FinalizedBlock::<T>::get().0);
 		if let Some(finalized) = finalized {
 			FinalizedBlock::<T>::put(finalized);
