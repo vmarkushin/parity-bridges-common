@@ -187,8 +187,14 @@ pub trait Storage {
 	fn finalize_headers(&mut self, finalized: Option<(u64, H256)>, prune_end: Option<u64>);
 }
 
+struct EthereumBridgeConfig;
+impl headerchain::traits::HeaderChainfor EthereumBridgeConfig {
+	type Header = Header;
+	...
+}
+
 /// The module configuration trait
-pub trait Trait: headerchain::Trait {}
+pub trait Trait: headerchain::Trait<EthereumBridgeConfig> {}
 
 decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
