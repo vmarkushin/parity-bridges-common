@@ -3243,6 +3243,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-bridge-eth-poa2"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-bridge-headerchain",
+ "parity-crypto 0.6.0",
+ "parity-scale-codec",
+ "serde",
+ "sp-bridge-eth-poa",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-bridge-headerchain"
 version = "0.1.0"
 dependencies = [

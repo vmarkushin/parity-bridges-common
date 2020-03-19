@@ -18,3 +18,5 @@
 
 pub mod storage;
 pub mod traits;
+
+pub use storage::*;

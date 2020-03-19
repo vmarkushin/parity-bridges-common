@@ -31,57 +31,29 @@ pub struct Configuration {
 }
 
 /// The module configuration trait
-pub trait Trait: frame_system::Trait {
-	type BridgeTypes: HeaderChain;
+pub trait Trait<H: HeaderChain>: frame_system::Trait {
 	/// Handler for headers submission result.
 	type OnHeadersSubmitted: OnHeadersSubmitted<Self::AccountId>;
 }
 
-decl_module! {
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-		pub fn import_header(
-			origin,
-			header: HeaderFor<T::BridgeTypes>,
-			aux: HeaderAuxFor<T::BridgeTypes>,
-		) {
-			// TODO [ToDr[ Check configuration
-			let submitter = frame_system::ensure_signed(origin)?;
-			let import_result: Result<_, &'static str> = unimplemented!();
-			// let import_result = import::import_headers(
-			// 	&mut BridgeStorage,
-			// 	&kovan_aura_config(),
-			// 	&kovan_validators_config(),
-			// 	crate::import::PRUNE_DEPTH,
-			// 	headers_with_receipts,
-			// );
-
-			match import_result {
-				Ok((useful, useless)) =>
-					T::OnHeadersSubmitted::on_valid_headers_submitted(submitter, useful, useless),
-				Err(error) => {
-					// even though we may have accept some headers, we do not want to reward someone
-					// who provides invalid headers
-					T::OnHeadersSubmitted::on_invalid_headers_submitted(submitter);
-					return Err(error.into());
-				},
-			}
-		}
-	}
-}
+// decl_module! {
+// 	pub struct Module<H: HeaderChain, T: Trait<H>> for enum Call where origin: T::Origin {
+// 	}
+// }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as Bridge {
+	trait Store for Module<H: HeaderChain, T: Trait<H>> as Bridge {
 		/// Best known block.
-		BestBlock: (BlockNumberFor<T::BridgeTypes>, BlockHashFor<T::BridgeTypes>);
+		BestBlock: (BlockNumberFor<H>, BlockHashFor<H>);
 		/// Best finalized block.
-		FinalizedBlock: (BlockNumberFor<T::BridgeTypes>, BlockHashFor<T::BridgeTypes>);
+		FinalizedBlock: (BlockNumberFor<H>, BlockHashFor<H>);
 		/// Oldest unpruned block(s) number.
-		OldestUnprunedBlock: BlockNumberFor<T::BridgeTypes>;
+		OldestUnprunedBlock: BlockNumberFor<H>;
 		/// Map of imported headers by hash.
-		Headers: map hasher(blake2_256) BlockHashFor<T::BridgeTypes> =>
-			Option<HeaderFor<T::BridgeTypes>>;
+		Headers: map hasher(blake2_256) BlockHashFor<H> =>
+			Option<HeaderFor<H>>;
 		/// Map of imported header hashes by number.
-		HeadersByNumber: map hasher(blake2_256) BlockNumberFor<T::BridgeTypes> => Option<Vec<BlockHashFor<T::BridgeTypes>>>;
+		HeadersByNumber: map hasher(blake2_256) BlockNumberFor<H> => Option<Vec<BlockHashFor<H>>>;
 /* TODO [Validator Sets?]
 		/// The ID of next validator set.
 		NextValidatorsSetId: u64;
@@ -96,7 +68,7 @@ decl_storage! {
 */
 	}
 	add_extra_genesis {
-		config(initial_header): HeaderFor<T::BridgeTypes>;
+		config(initial_header): HeaderFor<H>;
 		// config(initial_difficulty): U256;
 		// config(initial_validators): Vec<Address>;
 		build(|config| {
@@ -129,11 +101,41 @@ decl_storage! {
 	}
 }
 
-impl<T: Trait> Module<T> {
+impl<H: HeaderChain, T: Trait<H>> Module<T> {
+		pub fn import_header(
+			origin: T::Origin,
+			header: HeaderFor<H>,
+			aux: HeaderAuxFor<H>,
+		) -> frame_support::dispatch::DispatchResult {
+			// TODO [ToDr[ Check configuration
+			let submitter = frame_system::ensure_signed(origin)?;
+			let import_result: Result<_, &'static str> = unimplemented!();
+			// let import_result = import::import_headers(
+			// 	&mut BridgeStorage,
+			// 	&kovan_aura_config(),
+			// 	&kovan_validators_config(),
+			// 	crate::import::PRUNE_DEPTH,
+			// 	headers_with_receipts,
+			// );
+
+			match import_result {
+				Ok((useful, useless)) => {
+					T::OnHeadersSubmitted::on_valid_headers_submitted(submitter, useful, useless);
+					Ok(())
+				},
+				Err(error) => {
+					// even though we may have accept some headers, we do not want to reward someone
+					// who provides invalid headers
+					T::OnHeadersSubmitted::on_invalid_headers_submitted(submitter);
+					Err(error.into())
+				},
+			}
+		}
+
 	/// Returns number and hash of the best block known to the bridge module.
 	/// The caller should only submit `import_header` transaction that makes
 	/// (or leads to making) other header the best one.
-	pub fn best_block() -> (BlockNumberFor<T::BridgeTypes>, BlockHashFor<T::BridgeTypes>) {
+	pub fn best_block() -> (BlockNumberFor<H>, BlockHashFor<H>) {
 		BridgeStorage::<T>::default().best_block()
 	}
 	// TODO [ToDr] remove?
@@ -152,22 +154,22 @@ impl<T: Trait> Module<T> {
 /// Runtime bridge storage.
 struct BridgeStorage<T>(PhantomData<T>);
 
-impl<T: Trait> Default for BridgeStorage<T> {
+impl<H: HeaderChain, T: Trait<H>> Default for BridgeStorage<T> {
 	fn default() -> Self {
 		BridgeStorage(Default::default())
 	}
 }
 
-impl<T: Trait> Storage<T::BridgeTypes> for BridgeStorage<T> {
-	fn best_block(&self) -> (BlockNumberFor<T::BridgeTypes>, BlockHashFor<T::BridgeTypes>) {
+impl<H: HeaderChain, T: Trait<H>> Storage<H> for BridgeStorage<T> {
+	fn best_block(&self) -> (BlockNumberFor<H>, BlockHashFor<H>) {
 		BestBlock::<T>::get()
 	}
 
-	fn finalized_block(&self) -> (BlockNumberFor<T::BridgeTypes>, BlockHashFor<T::BridgeTypes>) {
+	fn finalized_block(&self) -> (BlockNumberFor<H>, BlockHashFor<H>) {
 		FinalizedBlock::<T>::get()
 	}
 
-	fn header(&self, hash: &BlockHashFor<T::BridgeTypes>) -> Option<HeaderFor<T::BridgeTypes>> {
+	fn header(&self, hash: &BlockHashFor<H>) -> Option<HeaderFor<H>> {
 		Headers::<T>::get(hash)
 	}
     //
@@ -192,9 +194,9 @@ impl<T: Trait> Storage<T::BridgeTypes> for BridgeStorage<T> {
 	fn insert_header(
 		&mut self,
 		is_best: bool,
-		number: BlockNumberFor<T::BridgeTypes>,
-		hash: BlockHashFor<T::BridgeTypes>,
-		header: HeaderFor<T::BridgeTypes>,
+		number: BlockNumberFor<H>,
+		hash: BlockHashFor<H>,
+		header: HeaderFor<H>,
 	) {
 		if is_best {
 			BestBlock::<T>::put((&number, &hash));
@@ -236,8 +238,8 @@ impl<T: Trait> Storage<T::BridgeTypes> for BridgeStorage<T> {
 
 	fn finalize_headers(
 		&mut self,
-		finalized: Option<(BlockNumberFor<T::BridgeTypes>, BlockHashFor<T::BridgeTypes>)>,
-		prune_end: Option<BlockNumberFor<T::BridgeTypes>>,
+		finalized: Option<(BlockNumberFor<H>, BlockHashFor<H>)>,
+		prune_end: Option<BlockNumberFor<H>>,
 	) {
 		// remember just finalized block
 		let finalized_number = finalized
@@ -284,10 +286,10 @@ impl<T: Trait> Storage<T::BridgeTypes> for BridgeStorage<T> {
 }
 
 /// Return iterator of given header ancestors.
-pub(crate) fn ancestry<'a, T: Trait, S: Storage<T::BridgeTypes>>(
+pub(crate) fn ancestry<'a, H: HeaderChain, T: Trait<H>, S: Storage<H>>(
 	storage: &'a S,
-	header: &HeaderFor<T::BridgeTypes>,
-) -> impl Iterator<Item = (BlockHashFor<T::BridgeTypes>, HeaderFor<T::BridgeTypes>)> + 'a {
+	header: &HeaderFor<H>,
+) -> impl Iterator<Item = (BlockHashFor<H>, HeaderFor<H>)> + 'a {
 	let mut parent_hash = header.parent_hash().clone();
 	from_fn(move || {
 		let header = storage.header(&parent_hash)?;
