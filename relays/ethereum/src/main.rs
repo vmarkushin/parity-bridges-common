@@ -213,7 +213,8 @@ fn substrate_signing_params(matches: &clap::ArgMatches) -> Result<SubstrateSigni
 }
 
 fn ethereum_sync_params(matches: &clap::ArgMatches) -> Result<EthereumSyncParams, String> {
-	let mut eth_sync_params = EthereumSyncParams::default();
+	let boxed = instance_params(matches)?;
+	let mut eth_sync_params = EthereumSyncParams::new(boxed);
 	eth_sync_params.eth = ethereum_connection_params(matches)?;
 	eth_sync_params.sub = substrate_connection_params(matches)?;
 	eth_sync_params.sub_sign = substrate_signing_params(matches)?;
@@ -239,7 +240,8 @@ fn ethereum_sync_params(matches: &clap::ArgMatches) -> Result<EthereumSyncParams
 }
 
 fn substrate_sync_params(matches: &clap::ArgMatches) -> Result<SubstrateSyncParams, String> {
-	let mut sub_sync_params = SubstrateSyncParams::default();
+	let boxed = instance_params(matches)?;
+	let mut sub_sync_params = SubstrateSyncParams::new(boxed);
 	sub_sync_params.eth = ethereum_connection_params(matches)?;
 	sub_sync_params.eth_sign = ethereum_signing_params(matches)?;
 	sub_sync_params.sub = substrate_connection_params(matches)?;
@@ -257,10 +259,11 @@ fn substrate_sync_params(matches: &clap::ArgMatches) -> Result<SubstrateSyncPara
 fn ethereum_deploy_contract_params(
 	matches: &clap::ArgMatches,
 ) -> Result<ethereum_deploy_contract::EthereumDeployContractParams, String> {
-	let mut eth_deploy_params = ethereum_deploy_contract::EthereumDeployContractParams::default();
-	eth_deploy_params.eth = ethereum_connection_params(matches)?;
-	eth_deploy_params.eth_sign = ethereum_signing_params(matches)?;
-	eth_deploy_params.sub = substrate_connection_params(matches)?;
+	let boxed = instance_params(matches)?;
+	let mut eth_deploy_params = ethereum_deploy_contract::EthereumDeployContractParams {
+		eth: ethereum_connection_params(matches)?,
+		eth_sign: ethereum_signing_params(matches)?,
+		sub:  substrate_connection_params(matches)?,
 
 	if let Some(eth_contract_code) = matches.value_of("eth-contract-code") {
 		eth_deploy_params.eth_contract_code =
@@ -311,7 +314,8 @@ fn ethereum_exchange_submit_params(
 }
 
 fn ethereum_exchange_params(matches: &clap::ArgMatches) -> Result<ethereum_exchange::EthereumExchangeParams, String> {
-	let mut params = ethereum_exchange::EthereumExchangeParams::default();
+	let boxed = instance_params(matches)?;
+	let mut params = ethereum_exchange::EthereumExchangeParams::new(boxed);
 	params.eth = ethereum_connection_params(matches)?;
 	params.sub = substrate_connection_params(matches)?;
 	params.sub_sign = substrate_signing_params(matches)?;
@@ -357,7 +361,7 @@ fn metrics_params(matches: &clap::ArgMatches) -> Result<Option<metrics::MetricsP
 	Ok(Some(metrics_params))
 }
 
-fn instance_params(matches: &clap::ArgMatches) -> Result<Box<dyn BridgeInstance + Send + Sync>, String> {
+fn instance_params(matches: &clap::ArgMatches) -> Result<Box<dyn BridgeInstance>, String> {
 	match matches.value_of("sub-pallet-instance") {
 		Some("rialto") | Some("Rialto") => Ok(Box::new(RialtoInstance::new())),
 		Some("kovan") | Some("Kovan") => Ok(Box::new(KovanInstance::new())),

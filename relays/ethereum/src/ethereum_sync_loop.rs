@@ -54,7 +54,7 @@ const MAX_SUBMITTED_HEADERS: usize = 128;
 const PRUNE_DEPTH: u32 = 4096;
 
 /// Ethereum synchronization parameters.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct EthereumSyncParams {
 	/// Ethereum connection params.
 	pub eth: EthereumConnectionParams,
@@ -70,25 +70,38 @@ pub struct EthereumSyncParams {
 	pub instance: Box<dyn BridgeInstance + Send + Sync>,
 }
 
-impl Default for EthereumSyncParams {
-	fn default() -> Self {
-		EthereumSyncParams {
-			eth: Default::default(),
-			sub: Default::default(),
-			sub_sign: Default::default(),
-			sync_params: HeadersSyncParams {
-				max_future_headers_to_download: MAX_FUTURE_HEADERS_TO_DOWNLOAD,
-				max_headers_in_submitted_status: MAX_SUBMITTED_HEADERS,
-				max_headers_in_single_submit: MAX_HEADERS_IN_SINGLE_SUBMIT,
-				max_headers_size_in_single_submit: MAX_HEADERS_SIZE_IN_SINGLE_SUBMIT,
-				prune_depth: PRUNE_DEPTH,
-				target_tx_mode: TargetTransactionMode::Signed,
-			},
-			metrics_params: Some(Default::default()),
-			instance: Default::default(),
+impl Clone for EthereumSyncParams {
+	fn clone(&self) -> Self {
+		Self {
+			eth: self.eth.clone(),
+			sub: self.sub.clone(),
+			sub_sign: self.sub_sign.clone(),
+			sync_params: self.sync_params.clone(),
+			metrics_params: self.metrics_params.clone(),
+			instance: self.instance.boxed_clone(),
 		}
 	}
 }
+
+// impl Default for EthereumSyncParams {
+// 	fn default() -> Self {
+// 		EthereumSyncParams {
+// 			eth: Default::default(),
+// 			sub: Default::default(),
+// 			sub_sign: Default::default(),
+// 			sync_params: HeadersSyncParams {
+// 				max_future_headers_to_download: MAX_FUTURE_HEADERS_TO_DOWNLOAD,
+// 				max_headers_in_submitted_status: MAX_SUBMITTED_HEADERS,
+// 				max_headers_in_single_submit: MAX_HEADERS_IN_SINGLE_SUBMIT,
+// 				max_headers_size_in_single_submit: MAX_HEADERS_SIZE_IN_SINGLE_SUBMIT,
+// 				prune_depth: PRUNE_DEPTH,
+// 				target_tx_mode: TargetTransactionMode::Signed,
+// 			},
+// 			metrics_params: Some(Default::default()),
+// 			instance: Default::default(),
+// 		}
+// 	}
+// }
 
 /// Ethereum client as headers source.
 struct EthereumHeadersSource {

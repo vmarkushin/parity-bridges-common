@@ -49,7 +49,7 @@ const MAX_SUBMITTED_HEADERS: usize = 4;
 const PRUNE_DEPTH: u32 = 256;
 
 /// Substrate synchronization parameters.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SubstrateSyncParams {
 	/// Ethereum connection params.
 	pub eth: EthereumConnectionParams,
@@ -66,33 +66,46 @@ pub struct SubstrateSyncParams {
 	/// Bridge instance
 	pub instance: Box<dyn BridgeInstance + Send + Sync>,
 }
+// impl Clone for SubstrateSyncParams {
+// 	fn clone(&self) -> Self {
+// 		Self {
+// 			eth: self.eth.clone(),
+// 			eth_sign: self.eth_sign.clone(),
+// 			eth_contract_address: self.eth_contract_address.clone(),
+// 			sub: self.sub.clone(),
+// 			sync_params: self.sync_params.clone(),
+// 			metrics_params: self.metrics_params.clone(),
+// 			instance: self.instance.boxed_clone(),
+// 		}
+// 	}
+// }
 
-impl Default for SubstrateSyncParams {
-	fn default() -> Self {
-		SubstrateSyncParams {
-			eth: Default::default(),
-			eth_sign: Default::default(),
-			// the address 0x731a10897d267e19b34503ad902d0a29173ba4b1 is the address
-			// of the contract that is deployed by default signer and 0 nonce
-			eth_contract_address: "731a10897d267e19b34503ad902d0a29173ba4b1"
-				.parse()
-				.expect("address is hardcoded, thus valid; qed"),
-			sub: Default::default(),
-			sync_params: HeadersSyncParams {
-				max_future_headers_to_download: MAX_FUTURE_HEADERS_TO_DOWNLOAD,
-				max_headers_in_submitted_status: MAX_SUBMITTED_HEADERS,
-				// since we always have single Substrate header in separate Ethereum transaction,
-				// all max_**_in_single_submit aren't important here
-				max_headers_in_single_submit: 4,
-				max_headers_size_in_single_submit: std::usize::MAX,
-				prune_depth: PRUNE_DEPTH,
-				target_tx_mode: TargetTransactionMode::Signed,
-			},
-			metrics_params: Some(Default::default()),
-			instance: Default::default(),
-		}
-	}
-}
+// impl Default for SubstrateSyncParams {
+// 	fn default() -> Self {
+// 		SubstrateSyncParams {
+// 			eth: Default::default(),
+// 			eth_sign: Default::default(),
+// 			// the address 0x731a10897d267e19b34503ad902d0a29173ba4b1 is the address
+// 			// of the contract that is deployed by default signer and 0 nonce
+// 			eth_contract_address: "731a10897d267e19b34503ad902d0a29173ba4b1"
+// 				.parse()
+// 				.expect("address is hardcoded, thus valid; qed"),
+// 			sub: Default::default(),
+// 			sync_params: HeadersSyncParams {
+// 				max_future_headers_to_download: MAX_FUTURE_HEADERS_TO_DOWNLOAD,
+// 				max_headers_in_submitted_status: MAX_SUBMITTED_HEADERS,
+// 				// since we always have single Substrate header in separate Ethereum transaction,
+// 				// all max_**_in_single_submit aren't important here
+// 				max_headers_in_single_submit: 4,
+// 				max_headers_size_in_single_submit: std::usize::MAX,
+// 				prune_depth: PRUNE_DEPTH,
+// 				target_tx_mode: TargetTransactionMode::Signed,
+// 			},
+// 			metrics_params: Some(Default::default()),
+// 			instance: Default::default(),
+// 		}
+// 	}
+// }
 
 /// Substrate client as headers source.
 struct SubstrateHeadersSource {
@@ -204,13 +217,15 @@ impl TargetClient<SubstrateHeadersSyncPipeline> for EthereumHeadersTarget {
 
 /// Run Substrate headers synchronization.
 pub fn run(params: SubstrateSyncParams) -> Result<(), RpcError> {
-	let sub_params = params.clone();
+	let SubstrateSyncParams {
+		eth, sub, instance, eth_contract_address, eth_sign, sync_params, metrics_params
+	} = params;
 
-	let eth_client = EthereumRpcClient::new(params.eth);
+	let eth_client = EthereumRpcClient::new(eth);
 	let sub_client =
-		async_std::task::block_on(async { SubstrateRpcClient::new(sub_params.sub, sub_params.instance).await })?;
+		async_std::task::block_on(async { SubstrateRpcClient::new(sub, instance).await })?;
 
-	let target = EthereumHeadersTarget::new(eth_client, params.eth_contract_address, params.eth_sign);
+	let target = EthereumHeadersTarget::new(eth_client, eth_contract_address, eth_sign);
 	let source = SubstrateHeadersSource::new(sub_client);
 
 	crate::sync_loop::run(
@@ -218,8 +233,8 @@ pub fn run(params: SubstrateSyncParams) -> Result<(), RpcError> {
 		SUBSTRATE_TICK_INTERVAL,
 		target,
 		ETHEREUM_TICK_INTERVAL,
-		params.sync_params,
-		params.metrics_params,
+		sync_params,
+		metrics_params,
 		futures::future::pending(),
 	);
 

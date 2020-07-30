@@ -22,47 +22,50 @@ use bridge_node_runtime::Call;
 
 use std::fmt::Debug;
 
-pub trait BridgeInstance {
+pub trait BridgeInstance: Send + Sync + std::fmt::Debug {
 	fn build_signed_header_call(&self, headers: Vec<QueuedEthereumHeader>) -> Call;
 	fn build_unsigned_header_call(&self, header: QueuedEthereumHeader) -> Call;
 	fn build_currency_exchange_call(&self, proof: Proof) -> Call;
+
+	fn boxed_clone(&self) -> Box<dyn BridgeInstance + Send + Sync> { todo!() }
 }
 
-impl Debug for Box<dyn BridgeInstance> {
-	fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-		todo!()
-	}
-}
-
-impl Debug for Box<dyn BridgeInstance + Send + Sync> {
-	fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-		todo!()
-	}
-}
-
-impl Default for Box<dyn BridgeInstance> {
-	fn default() -> Self {
-		todo!()
-	}
-}
-
-impl Default for Box<dyn BridgeInstance + Send + Sync> {
-	fn default() -> Self {
-		todo!()
-	}
-}
-
-impl Clone for Box<dyn BridgeInstance> {
-	fn clone(&self) -> Self {
-		todo!()
-	}
-}
-
-impl Clone for Box<dyn BridgeInstance + Send + Sync> {
-	fn clone(&self) -> Self {
-		todo!()
-	}
-}
+//
+// impl Debug for Box<dyn BridgeInstance> {
+// 	fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+// 		todo!()
+// 	}
+// }
+//
+// impl Debug for Box<dyn BridgeInstance + Send + Sync> {
+// 	fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+// 		todo!()
+// 	}
+// }
+//
+// impl Default for Box<dyn BridgeInstance> {
+// 	fn default() -> Self {
+// 		todo!()
+// 	}
+// }
+//
+// impl Default for Box<dyn BridgeInstance + Send + Sync> {
+// 	fn default() -> Self {
+// 		todo!()
+// 	}
+// }
+//
+// impl Clone for Box<dyn BridgeInstance> {
+// 	fn clone(&self) -> Self {
+// 		todo!()
+// 	}
+// }
+//
+// impl Clone for Box<dyn BridgeInstance + Send + Sync> {
+// 	fn clone(&self) -> Self {
+// 		todo!()
+// 	}
+// }
 
 #[derive(Default, Clone, Debug)]
 pub struct RialtoInstance;
@@ -74,6 +77,10 @@ impl RialtoInstance {
 }
 
 impl BridgeInstance for RialtoInstance {
+	fn boxed_clone(&self) -> Box<dyn BridgeInstance + Send + Sync> {
+		Box::new(self.clone())
+	}
+
 	fn build_signed_header_call(&self, headers: Vec<QueuedEthereumHeader>) -> Call {
 		let pallet_call = bridge_node_runtime::BridgeEthPoACall::import_signed_headers(
 			headers

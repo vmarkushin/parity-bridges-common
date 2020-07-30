@@ -43,24 +43,25 @@ pub struct EthereumDeployContractParams {
 	/// Initial header.
 	pub sub_initial_header: Option<Vec<u8>>,
 	/// Bridge instance
+	///
 	pub instance: Box<dyn BridgeInstance + Send + Sync>,
 }
-
-impl Default for EthereumDeployContractParams {
-	fn default() -> Self {
-		EthereumDeployContractParams {
-			eth: Default::default(),
-			eth_sign: Default::default(),
-			eth_contract_code: hex::decode(include_str!("../res/substrate-bridge-bytecode.hex"))
-				.expect("code is hardcoded, thus valid; qed"),
-			sub: Default::default(),
-			sub_initial_authorities_set_id: None,
-			sub_initial_authorities_set: None,
-			sub_initial_header: None,
-			instance: Default::default(),
-		}
-	}
-}
+//
+// impl Default for EthereumDeployContractParams {
+// 	fn default() -> Self {
+// 		EthereumDeployContractParams {
+// 			eth: Default::default(),
+// 			eth_sign: Default::default(),
+// 			eth_contract_code: hex::decode(include_str!("../res/substrate-bridge-bytecode.hex"))
+// 				.expect("code is hardcoded, thus valid; qed"),
+// 			sub: Default::default(),
+// 			sub_initial_authorities_set_id: None,
+// 			sub_initial_authorities_set: None,
+// 			sub_initial_header: None,
+// 			instance: Default::default(),
+// 		}
+// 	}
+// }
 
 /// Deploy Bridge contract on Ethereum chain.
 pub fn run(params: EthereumDeployContractParams) {
