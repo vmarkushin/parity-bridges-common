@@ -1,24 +1,41 @@
 # This Compose file should be built using the Rialto and Eth-PoA node
 # compose files. Otherwise it won't work.
+# ```
+# $ docker-compose \
+#   -f ../nodes/rialto.yml \
+#   -f ../nodes/eth-poa.yml \
+#   -f ./docker-compose.yml
+# ```
 
 version: '3.5'
 services:
+  rialto-node-alice: *rialto-node-alice
+  rialto-node-bob: *rialto-node-bob
   # We provide an override for this particular node since this is a public facing
   # node which we use to connect from things like Polkadot JS Apps.
   # TODO: Check that this override is done correctly (check order of -f files)
   rialto-node-charlie:
+    <<: *rialto-node-charlie
     environment:
       VIRTUAL_HOST: rialto.bridges.test-installations.parity.io,wss.rialto.brucke.link
       VIRTUAL_PORT: 9944
       LETSENCRYPT_HOST: rialto.bridges.test-installations.parity.io,wss.rialto.brucke.link
       LETSENCRYPT_EMAIL: admin@parity.io
+  rialto-node-dave: *rialto-node-dave
+  rialto-node-eve: *rialto-node-eve
 
+  # ETH POA nodes
+  poa-node-arthur: *poa-node-arthur
+  poa-node-bertha: *poa-node-bertha
+  poa-node-carlos: *poa-node-carlos
+
+  # RELAYERS
   relay-eth2sub:
     image: paritytech/ethereum-poa-relay
     entrypoint: /config/relay-eth2sub-entrypoint.sh
-    volumes:
+    volumes: &relay-config
       - ./bridge-config:/config
-    environment:
+    environment: &relay-logs
       RUST_LOG: rpc=trace,bridge=trace
     ports:
       - "9616:9616"
@@ -32,25 +49,11 @@ services:
       - rialto-node-dave
       - rialto-node-eve
 
-  poa-exchange-tx-generator:
-    image: paritytech/ethereum-poa-relay
-    entrypoint: /config/poa-exchange-tx-generator-entrypoint.sh
-    volumes:
-      - ./bridge-config:/config
-    environment:
-      RUST_LOG: rpc=trace,bridge=trace
-      EXCHANGE_GEN_MIN_AMOUNT_FINNEY: ${EXCHANGE_GEN_MIN_AMOUNT_FINNEY:-1}
-      EXCHANGE_GEN_MAX_AMOUNT_FINNEY: ${EXCHANGE_GEN_MAX_AMOUNT_FINNEY:-100000}
-      EXCHANGE_GEN_MAX_SUBMIT_DELAY_S: ${EXCHANGE_GEN_MAX_SUBMIT_DELAY_S:-60}
-    depends_on: *all-nodes
-
   relay-eth-exchange-sub:
     image: paritytech/ethereum-poa-relay
     entrypoint: /config/relay-eth-exchange-sub-entrypoint.sh
-    volumes:
-      - ./bridge-config:/config
-    environment:
-      RUST_LOG: rpc=trace,bridge=trace
+    volumes: *relay-config
+    environment: *relay-logs
     ports:
       - "9716:9616"
     depends_on: *all-nodes
@@ -58,14 +61,37 @@ services:
   relay-sub2eth:
     image: paritytech/ethereum-poa-relay
     entrypoint: /config/relay-sub2eth-entrypoint.sh
-    volumes:
-      - ./bridge-config:/config
-    environment:
-      RUST_LOG: rpc=trace,bridge=trace
+    volumes: *relay-config
+    environment: *relay-logs
     ports:
       - "9618:9616"
     depends_on: *all-nodes
 
+  # GENERATORS
+  poa-exchange-tx-generator:
+    image: paritytech/ethereum-poa-relay
+    entrypoint: /config/poa-exchange-tx-generator-entrypoint.sh
+    volumes: *relay-config
+    environment:
+      <<: *relay-logs
+      EXCHANGE_GEN_MIN_AMOUNT_FINNEY: ${EXCHANGE_GEN_MIN_AMOUNT_FINNEY:-1}
+      EXCHANGE_GEN_MAX_AMOUNT_FINNEY: ${EXCHANGE_GEN_MAX_AMOUNT_FINNEY:-100000}
+      EXCHANGE_GEN_MAX_SUBMIT_DELAY_S: ${EXCHANGE_GEN_MAX_SUBMIT_DELAY_S:-60}
+    depends_on: *all-nodes
+
+  # CURRENCY EXCHANGE UI
+  front-end:
+    build:
+      context: .
+      dockerfile: ./Front-end.Dockerfile
+      args:
+        SUBSTRATE_PROVIDER: ${UI_SUBSTRATE_PROVIDER:-ws://localhost:9944}
+        ETHEREUM_PROVIDER: ${UI_ETHEREUM_PROVIDER:-http://localhost:8545}
+        EXPECTED_ETHEREUM_NETWORK_ID: ${UI_EXPECTED_ETHEREUM_NETWORK_ID:-105}
+    ports:
+      - "8080:80"
+
+  # METRICS & MONITORING
   prometheus-metrics:
     image: prom/prometheus:v2.20.1
     volumes:
@@ -101,14 +127,3 @@ services:
       - "4567:4567"
     depends_on:
       - grafana-dashboard
-
-  front-end:
-    build:
-      context: .
-      dockerfile: ./Front-end.Dockerfile
-      args:
-        SUBSTRATE_PROVIDER: ${UI_SUBSTRATE_PROVIDER:-ws://localhost:9944}
-        ETHEREUM_PROVIDER: ${UI_ETHEREUM_PROVIDER:-http://localhost:8545}
-        EXPECTED_ETHEREUM_NETWORK_ID: ${UI_EXPECTED_ETHEREUM_NETWORK_ID:-105}
-    ports:
-      - "8080:80"
