@@ -2,39 +2,32 @@
 # compose files. Otherwise it won't work.
 # ```
 # $ docker-compose \
-#   -f ../nodes/rialto.yml \
-#   -f ../nodes/eth-poa.yml \
-#   -f ./docker-compose.yml
+#   -f ./networks/rialto.yml \
+#   -f ./networks/eth-poa.yml \
+#   -f ./monitoring/docker-compose.yml \
+#   -f ./bridges/rialto-poa/docker-compose.yml
 # ```
+# TODO Probably all the paths should be made relative to `./deployments` directory, so that
+# we run from `./deploments` as CWD.
 
 version: '3.5'
 services:
-  rialto-node-alice: *rialto-node-alice
-  rialto-node-bob: *rialto-node-bob
   # We provide an override for this particular node since this is a public facing
   # node which we use to connect from things like Polkadot JS Apps.
   # TODO: Check that this override is done correctly (check order of -f files)
   rialto-node-charlie:
-    <<: *rialto-node-charlie
     environment:
       VIRTUAL_HOST: rialto.bridges.test-installations.parity.io,wss.rialto.brucke.link
       VIRTUAL_PORT: 9944
       LETSENCRYPT_HOST: rialto.bridges.test-installations.parity.io,wss.rialto.brucke.link
       LETSENCRYPT_EMAIL: admin@parity.io
-  rialto-node-dave: *rialto-node-dave
-  rialto-node-eve: *rialto-node-eve
-
-  # ETH POA nodes
-  poa-node-arthur: *poa-node-arthur
-  poa-node-bertha: *poa-node-bertha
-  poa-node-carlos: *poa-node-carlos
 
   # RELAYERS
   relay-eth2sub:
     image: paritytech/ethereum-poa-relay
     entrypoint: /config/relay-eth2sub-entrypoint.sh
     volumes: &relay-config
-      - ./bridge-config:/config
+      - ./relayers:/config
     environment: &relay-logs
       RUST_LOG: rpc=trace,bridge=trace
     ports:
@@ -93,37 +86,16 @@ services:
 
   # METRICS & MONITORING
   prometheus-metrics:
-    image: prom/prometheus:v2.20.1
     volumes:
       - ./dashboard/prometheus/:/etc/prometheus/
-    ports:
-      - "9090:9090"
     depends_on: *all-nodes
-
   grafana-dashboard:
-    image: grafana/grafana:7.1.3
+    volumes:
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
     environment:
       VIRTUAL_HOST: dashboard.rialto.bridges.test-installations.parity.io,grafana.rialto.brucke.link
       VIRTUAL_PORT: 3000
       LETSENCRYPT_HOST: dashboard.rialto.bridges.test-installations.parity.io,grafana.rialto.brucke.link
       LETSENCRYPT_EMAIL: admin@parity.io
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASS:-admin}
-      GF_SERVER_ROOT_URL: ${GRAFANA_SERVER_ROOT_URL}
-      GF_SERVER_DOMAIN: ${GRAFANA_SERVER_DOMAIN}
-    volumes:
-      - ./dashboard/grafana/provisioning/:/etc/grafana/provisioning/
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus-metrics
 
-  grafana-matrix-notifier:
-    build:
-      context: .
-      dockerfile: ./GrafanaMatrix.Dockerfile
-    volumes:
-      - ./dashboard/grafana-matrix:/config
-    ports:
-      - "4567:4567"
-    depends_on:
-      - grafana-dashboard
+
